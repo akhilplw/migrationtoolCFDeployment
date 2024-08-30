@@ -1,0 +1,1 @@
+{"version":3,"file":"logPage.js","names":["sap","ui","define","MessageBox","buttonPressed","e"],"sources":["logPage-dbg.js"],"mappings":"AAAAA,IAAIC,GAAGC,OAAO,CAAC,oBAAqB,SAAUC,GAC1C,aAEA,MAAO,CACHC,cAAe,SAAUC,GAAK,EAEtC","ignoreList":[]}

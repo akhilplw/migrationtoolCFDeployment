@@ -12,7 +12,7 @@ class MigrationTask {
             case 'Skip All':
                 this._setSkipAllValues();
                 break;
-            case 'Include All':
+            case 'Include Al':
                 this._setIncludeAllValues();
                 break;
             case 'Optimal':

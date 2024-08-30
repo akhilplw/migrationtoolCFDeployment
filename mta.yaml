@@ -1,0 +1,206 @@
+---
+_schema-version: 3.3.0
+ID: migrationtool
+description: Assistant to support content migration from SAP Integration Services
+  (Neo) to SAP Integration Suite (Multi-cloud)
+version: 1.3.0
+modules:
+- name: migrationtool-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: migrationtool-db
+  - name: uaa_migrationtool
+  - name: migrationtool-destination-service
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: "${default-url}"
+  parameters:
+    buildpack: nodejs_buildpack
+    readiness-health-check-http-endpoint: "/health"
+    readiness-health-check-type: http
+  build-parameters:
+    builder: npm
+- name: migrationtool-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: migrationtool-db
+  parameters:
+    buildpack: nodejs_buildpack
+- name: migrationtool-app-content
+  type: com.sap.application.content
+  path: "."
+  requires:
+  - name: migrationtool_html_repo_host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - contentviewer.zip
+      name: contentviewer
+      target-path: resources/
+    - artifacts:
+      - migrationjobs.zip
+      name: migrationjobs
+      target-path: resources/
+    - artifacts:
+      - migrationtasks.zip
+      name: migrationtasks
+      target-path: resources/
+    - artifacts:
+      - registration.zip
+      name: registration
+      target-path: resources/
+- name: contentviewer
+  type: html5
+  path: app/contentviewer
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: migrationjobs
+  type: html5
+  path: app/migrationjobs
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: migrationtasks
+  type: html5
+  path: app/migrationtasks
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: registration
+  type: html5
+  path: app/registration
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: migrationtool-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: migrationtool-destination-service
+    parameters:
+      content-target: true
+  - name: migrationtool_html_repo_host
+    parameters:
+      service-key:
+        name: migrationtool_html_repo_host-key
+  - name: uaa_migrationtool
+    parameters:
+      service-key:
+        name: uaa_migrationtool-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: integrationsuite_migrationtool_migrationtool_html_repo_host
+          ServiceInstanceName: migrationtool-html5-app-host-service
+          ServiceKeyName: migrationtool_html_repo_host-key
+          sap.cloud.service: integrationsuite_migrationtool
+        - Authentication: OAuth2UserTokenExchange
+          Name: integrationsuite_migrationtool_uaa_migrationtool
+          ServiceInstanceName: uaa_migrationtool
+          ServiceKeyName: uaa_migrationtool-key
+          sap.cloud.service: migrationtool.apps
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+- name: migrationtool
+  type: approuter.nodejs
+  path: app/router
+  parameters:
+    keep-existing-routes: true
+    disk-quota: 2G
+    memory: 2G
+  build-parameters:
+    ignore:
+    - ".env"
+    - node_modules/
+    - default-env.json
+  requires:
+  - name: srv-api
+    group: destinations
+    properties:
+      name: srv-api
+      url: "~{srv-url}"
+      forwardAuthToken: true
+  - name: uaa_migrationtool
+resources:
+- name: migrationtool-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
+- name: uaa_migrationtool
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      tenant-mode: dedicated
+      xsappname: migrationtool
+    path: "./xs-security.json"
+    service: xsuaa
+    service-plan: application
+- name: migrationtool_html_repo_host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: migrationtool-html5-app-host-service
+    service-plan: app-host
+- name: migrationtool-destination-service
+  type: org.cloudfoundry.managed-service
+  requires:
+  - name: srv-api
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            HTML5.DynamicDestination: true
+            HTML5.ForwardAuthToken: true
+            Name: migrationtool-srv
+            ProxyType: Internet
+            Type: HTTP
+            URL: "~{srv-api/srv-url}"
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          existing_destinations_policy: update
+      version: 1.0.0
+    service: destination
+    service-name: migrationtool-destination-service
+    service-plan: lite
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npm ci
+    - npx cds build --production
+    - npx rimraf gen/srv/node_modules
+    - npx rimraf gen/srv/.cache

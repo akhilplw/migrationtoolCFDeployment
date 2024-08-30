@@ -18,31 +18,37 @@
     "Migration tool"
   ],
   "dependencies": {
+    "@sap/cds": "^8.1.1",
+    "@sap/cds-hana": "^2.0.0",
+    "@sap/xssec": "^4.2.1",
     "@cap-js/sqlite": "^1.7.3",
     "@sap-cloud-sdk/http-client": "^3.18",
-    "@sap/cds": "^7.9.3",
     "axios": "^1.7",
     "express": "^4.19.2",
     "qs": "^6.13.0",
+    "rimraf": "^6.0.1",
     "uuid": "^9.0.1",
     "xml2js": "^0.6.2",
     "yauzl": "^3.1.3",
     "yazl": "^2.5.1"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
+    "deployforce": "cf deploy mta_archives/archive.mtar --forceOpt true"
   },
   "cds": {
     "requires": {
-      "db": {
-        "kind": "sqlite",
-        "credentials": {
-          "url": "db.sqlite"
-        }
-      }
+      "auth": "xsuaa",
+      "db": "hana"
     },
     "cdsc": {
       "defaultStringLength": 1000
     }
+  },
+  "devDependencies": {
+    "@sap/cds-dk": "^7.1.1",
+      "rimraf": "^6.0.1"
   }
 }
